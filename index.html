@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SHH - Silent Dating</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background: #0f0f12; color: #ffffff; display: flex; flex-direction: column; height: 100vh; justify-content: space-between; overflow: hidden; }
+        .timer-badge { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #ef4444; padding: 6px 16px; border-radius: 20px; font-weight: bold; font-size: 18px; margin: 15px auto; display: none; z-index: 5; }
+        .video-container { flex: 1; display: flex; flex-direction: column; position: relative; padding: 10px; gap: 10px; }
+        .video-box { flex: 1; background: #1a1a24; border-radius: 16px; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 2px solid #2a2a36; }
+        .video-label { position: absolute; bottom: 12px; left: 12px; background: rgba(0,0,0,0.6); padding: 4px 12px; border-radius: 20px; font-size: 14px; }
+        .overlay-ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 4; padding: 20px; box-shadow: inset 0 0 100px rgba(0,0,0,0.8); }
+        .card { background: linear-gradient(135deg, #6366f1, #a855f7); padding: 24px; border-radius: 24px; text-align: center; width: 90%; max-width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); animation: scaleIn 0.3s ease; }
+        .card h2 { font-size: 14px; opacity: 0.7; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+        .card p { font-size: 18px; font-weight: bold; line-height: 1.4; margin-bottom: 20px; }
+        .card button { background: #ffffff; color: #000000; border: none; padding: 12px 20px; border-radius: 14px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px; }
+        .match-screen { display: none; flex-direction: column; justify-content: center; align-items: center; height: 100vh; padding: 30px; text-align: center; background: #0f0f12; position: absolute; width: 100%; top: 0; left: 0; z-index: 10; }
+        .match-screen h1 { font-size: 28px; margin-bottom: 10px; }
+        .match-screen p { color: #8a8a9e; margin-bottom: 40px; font-size: 16px; }
+        .choice-btn { width: 100%; max-width: 280px; padding: 16px; border-radius: 16px; font-size: 18px; font-weight: bold; border: none; cursor: pointer; margin-bottom: 15px; transition: transform 0.1s; }
+        .choice-btn:active { transform: scale(0.98); }
+        .btn-yes { background: #10b981; color: white; }
+        .btn-no { background: #374151; color: white; }
+        @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div id="timer" class="timer-badge">03:00</div>
+
+    <div class="video-container">
+        <div class="video-box" id="remote-box">
+            <video id="remoteVideo" autoplay playsinline style="width:100%; height:100%; object-fit: cover; display:none;"></video>
+            <span id="remote-placeholder" style="color: #4b5563; font-size: 14px; text-align:center; padding:10px;">[Собеседник появится здесь.<br>Звук выключен]</span>
+            <div class="video-label">Алексей, 24</div>
+        </div>
+        <div class="video-box" id="local-box">
+            <video id="localVideo" autoplay playsinline muted style="width:100%; height:100%; object-fit: cover;"></video>
+            <div class="video-label">Ты (Микрофон выключен)</div>
+        </div>
+    </div>
+
+    <div class="overlay-ui" id="overlay">
+        <div class="card">
+            <h2 id="card-stage">Задание 1 из 3</h2>
+            <p id="card-text">Посмотри в глаза собеседнику и искренне улыбнись!</p>
+            <button onclick="nextStep()">Готово ✔</button>
+        </div>
+    </div>
+
+    <div class="match-screen" id="match-screen">
+        <h1>Время вышло! ⏳</h1>
+        <p>Понравился собеседник? Если это взаимно, у вас откроется текстовый чат.</p>
+        <button class="choice-btn btn-yes" onclick="finish(true)">❤️ Да, хочу общаться</button>
+        <button class="choice-btn btn-no" onclick="finish(false)">❌ Нет, дальше</button>
+    </div>
+
+    <script>
+        const quests = [
+            "Посмотри в глаза собеседнику и искренне улыбнись!",
+            "Покажи жест 'ОК' 👌 или помаши рукой в камеру.",
+            "Загадай число от 1 до 5 и покажи его на пальцах. Пусть собеседник угадает!"
+        ];
+        
+        let currentStage = 0;
+        let timeLeft = 180;
+        let timerInterval;
+        let localStream;
+
+        // Включение камеры пользователя при старте
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(stream => {
+                localStream = stream;
+                document.getElementById('localVideo').srcObject = stream;
+                // Принудительно глушим свой звук для режима молчания
+                stream.getAudioTracks().forEach(track => track.enabled = false);
+            })
+            .catch(err => alert("Пожалуйста, разрешите доступ к камере: " + err));
+
+        // Конфигурация бесплатного P2P режима через сервера Google
+        const rtcConfig = { iceServers: [{ urls: 'stun:://google.com' }] };
+        const peerConnection = new RTCPeerConnection(rtcConfig);
+
+        function nextStep() {
+            currentStage++;
+            if (currentStage < quests.length) {
+                document.getElementById("card-stage").innerText = `Задание ${currentStage + 1} из 3`;
+                document.getElementById("card-text").innerText = quests[currentStage];
+            } else {
+                startTalkingPhase();
+            }
+        }
+
+        function startTalkingPhase() {
+            document.getElementById("overlay").style.display = "none";
+            document.getElementById("timer").style.display = "block";
+            
+            // Включаем микрофон
+            if (localStream) {
+                localStream.getAudioTracks().forEach(track => track.enabled = true);
+            }
+            document.querySelector('#local-box .video-label').innerText = "Ты (Микрофон ВКЛЮЧЕН)";
+            document.querySelector('#remote-box .video-label').innerText = "Алексей (Микрофон ВКЛЮЧЕН)";
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                let minutes = Math.floor(timeLeft / 60);
+                let seconds = timeLeft % 60;
+                document.getElementById("timer").innerText = 
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    if (localStream) {
+                        localStream.getTracks().forEach(track => track.stop());
+                    }
+                    document.getElementById("match-screen").style.display = "flex";
+                }
+            }, 1000);
+        }
+
+        function finish(isLiked) {
+            alert(isLiked ? "Взаимно! Контакт сохранен." : "Ищем следующего собеседника...");
+            location.reload();
+        }
+    </script>
+</body>
+</html>
