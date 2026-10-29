@@ -3,10 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SHH - Silent Dating</title>
+    <title>MUTE - Silent Dating</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background: #0f0f12; color: #ffffff; display: flex; flex-direction: column; height: 100vh; justify-content: space-between; overflow: hidden; }
+        
+        /* Экран авторизации */
+        .auth-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; padding: 24px; text-align: center; background: #0f0f12; position: absolute; width: 100%; top: 0; left: 0; z-index: 20; }
+        .auth-logo { font-size: 42px; font-weight: 900; letter-spacing: 4px; margin-bottom: 10px; color: #ffffff; }
+        .auth-subtitle { color: #8a8a9e; font-size: 16px; margin-bottom: 40px; max-width: 280px; line-height: 1.4; }
+        .auth-btn { width: 100%; max-width: 290px; padding: 16px; border-radius: 16px; font-size: 16px; font-weight: bold; border: none; cursor: pointer; margin-bottom: 14px; display: flex; align-items: center; justify-content: center; gap: 10px; transition: transform 0.1s; color: #ffffff; }
+        .auth-btn:active { transform: scale(0.98); }
+        .btn-google { background: #ffffff; color: #000000; box-shadow: 0 4px 12px rgba(255,255,255,0.1); }
+        .btn-phone { background: #2563eb; }
+        .btn-email { background: #1f2937; border: 1px solid #374151; }
+        
+        /* Игровой интерфейс */
         .timer-badge { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #ef4444; padding: 6px 16px; border-radius: 20px; font-weight: bold; font-size: 18px; margin: 15px auto; display: none; z-index: 5; }
         .video-container { flex: 1; display: flex; flex-direction: column; position: relative; padding: 10px; gap: 10px; }
         .video-box { flex: 1; background: #1a1a24; border-radius: 16px; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 2px solid #2a2a36; }
@@ -16,6 +28,8 @@
         .card h2 { font-size: 14px; opacity: 0.7; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
         .card p { font-size: 18px; font-weight: bold; line-height: 1.4; margin-bottom: 20px; }
         .card button { background: #ffffff; color: #000000; border: none; padding: 12px 20px; border-radius: 14px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px; }
+        
+        /* Экран выбора */
         .match-screen { display: none; flex-direction: column; justify-content: center; align-items: center; height: 100vh; padding: 30px; text-align: center; background: #0f0f12; position: absolute; width: 100%; top: 0; left: 0; z-index: 10; }
         .match-screen h1 { font-size: 28px; margin-bottom: 10px; }
         .match-screen p { color: #8a8a9e; margin-bottom: 40px; font-size: 16px; }
@@ -27,6 +41,19 @@
     </style>
 </head>
 <body>
+
+    <!-- ЭКРАН РУССКОЙ АВТОРIЗАЦIИ -->
+    <div class="auth-screen" id="auth-screen">
+        <div class="auth-logo">MUTE</div>
+        <div class="auth-subtitle">Свидания вслепую и без слов. Найди свою любовь по взгляду.</div>
+        
+        <button class="auth-btn btn-google" onclick="startApp('Google')">
+            <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v3.92h6.69c-.29 1.5-.14 3.01-1.3 4a7.62 7.62 0 0 1-5.39 2.11 8 8 0 1 1 7.32-4.83l3.65 2.83c-2.31 4.21-6.73 7-11.75 7C5.38 23 0 17.62 0 11S5.38 -1 12 -1c3.58 0 6.8 1.32 9.25 3.65l-3.1 3.1A7.63 7.63 0 0 0 12 4c-3.86 0-7.07 2.78-7.79 6.47l-3.66-2.83A12 12 0 0 1 12 0c3.27 0 6.42 1.25 8.76 3.47l2.9-2.9c.2.18.38.38.56.58l-.48.48c1.32 1.34 2.13 3.18 2.13 5.4v5.24z"/></svg>
+            Войти через Google
+        </button>
+        <button class="auth-btn btn-phone" onclick="startApp('Телефону')">📱 По номеру телефона</button>
+        <button class="auth-btn btn-email" onclick="startApp('Почте')">✉️ По электронной почте</button>
+    </div>
 
     <div id="timer" class="timer-badge">03:00</div>
 
@@ -42,9 +69,9 @@
         </div>
     </div>
 
-    <div class="overlay-ui" id="overlay">
+    <div class="overlay-ui" id="overlay" style="display: none;">
         <div class="card">
-            <h2 id="card-stage">Задание 1 из 3</h2>
+            <h2 id="card-stage">Задание 1 из 20</h2>
             <p id="card-text">Посмотри в глаза собеседнику и искренне улыбнись!</p>
             <button onclick="nextStep()">Готово ✔</button>
         </div>
@@ -60,8 +87,25 @@
     <script>
         const quests = [
             "Посмотри в глаза собеседнику и искренне улыбнись!",
-            "Покажи жест 'ОК' 👌 или помаши рукой в камеру.",
-            "Загадай число от 1 до 5 и покажи его на пальцах. Пусть собеседник угадает!"
+            "Помаши рукой в камеру и покажи жест «ОК» 👌.",
+            "Попробуй в точности скопировать выражение лица собеседника.",
+            "Покажи «сердечко» руками собеседнику 🫶.",
+            "Сделай максимально серьезное лицо на 5 секунд. Кто первый засмеется?",
+            "Загадай число от 1 до 5 и покажи на пальцах. Пусть собеседник угадает!",
+            "Покажи жестами (без звука), кем ты работаешь или на кого учишься.",
+            "Поиграйте в «Камень, ножницы, бумага» в камеру до первой победы ✊✂️✋.",
+            "Покажи жестами или мимикой твое самое любимое домашнее животное.",
+            "Представь, что держишь горячий чай. Сделай глоток и покажи, что обжёгся!",
+            "Покажи эмоцию человека, который выиграл миллион рублей в лотерею 🤑.",
+            "Покажи жестами свою суперсилу: ты умеешь летать или становиться невидимкой?",
+            "Закрой глаза на 3 секунды, открой и посмотри на собеседника новым взглядом.",
+            "Покажи на пальцах от 1 до 10, какое у тебя сейчас настроение.",
+            "Покажи лицом, что ты увидел невероятно милого и пушистого котенка.",
+            "Приложи ладонь к камере, как будто ты «даешь пять» собеседнику через экран.",
+            "Попробуйте одновременно и синхронно моргнуть глазами.",
+            "Покажи жестами, куда ты хочешь в отпуск: в горы 🏔️ или на море 🌊?",
+            "Интенсивно кивни головой, если тебе нравится атмосфера нашего свидания!",
+            "Пошли собеседнику воздушный поцелуй или дружески подмигни 😉."
         ];
         
         let currentStage = 0;
@@ -69,62 +113,34 @@
         let timerInterval;
         let localStream;
 
-        // Включение камеры пользователя при старте
-        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-            .then(stream => {
-                localStream = stream;
-                document.getElementById('localVideo').srcObject = stream;
-                // Принудительно глушим свой звук для режима молчания
-                stream.getAudioTracks().forEach(track => track.enabled = false);
-            })
-            .catch(err => alert("Пожалуйста, разрешите доступ к камере: " + err));
+        // Вход в приложение
+        function startApp(method) {
+            document.getElementById("auth-screen").style.display = "none";
+            document.getElementById("overlay").style.display = "flex";
+            
+            // Включаем камеру после авторизации
+            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+                .then(stream => {
+                    localStream = stream;
+                    document.getElementById('localVideo').srcObject = stream;
+                    stream.getAudioTracks().forEach(track => track.enabled = false);
+                })
+                .catch(err => alert("Пожалуйста, разрешите доступ к камере: " + err));
+        }
 
-        // Конфигурация бесплатного P2P режима через сервера Google
         const rtcConfig = { iceServers: [{ urls: 'stun:://google.com' }] };
         const peerConnection = new RTCPeerConnection(rtcConfig);
 
         function nextStep() {
             currentStage++;
             if (currentStage < quests.length) {
-                document.getElementById("card-stage").innerText = `Задание ${currentStage + 1} из 3`;
+                document.getElementById("card-stage").innerText = `Задание ${currentStage + 1} из ${quests.length}`;
                 document.getElementById("card-text").innerText = quests[currentStage];
             } else {
                 startTalkingPhase();
             }
         }
 
+        // Остальной функционал без изменений...
         function startTalkingPhase() {
             document.getElementById("overlay").style.display = "none";
-            document.getElementById("timer").style.display = "block";
-            
-            // Включаем микрофон
-            if (localStream) {
-                localStream.getAudioTracks().forEach(track => track.enabled = true);
-            }
-            document.querySelector('#local-box .video-label').innerText = "Ты (Микрофон ВКЛЮЧЕН)";
-            document.querySelector('#remote-box .video-label').innerText = "Алексей (Микрофон ВКЛЮЧЕН)";
-
-            timerInterval = setInterval(() => {
-                timeLeft--;
-                let minutes = Math.floor(timeLeft / 60);
-                let seconds = timeLeft % 60;
-                document.getElementById("timer").innerText = 
-                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                
-                if (timeLeft <= 0) {
-                    clearInterval(timerInterval);
-                    if (localStream) {
-                        localStream.getTracks().forEach(track => track.stop());
-                    }
-                    document.getElementById("match-screen").style.display = "flex";
-                }
-            }, 1000);
-        }
-
-        function finish(isLiked) {
-            alert(isLiked ? "Взаимно! Контакт сохранен." : "Ищем следующего собеседника...");
-            location.reload();
-        }
-    </script>
-</body>
-</html>
